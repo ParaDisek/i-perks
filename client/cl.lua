@@ -1,6 +1,7 @@
 ESX = nil
 perks = {}
 perksexp = {}
+temp_perk_exp = {}
 Keys = {
     ['ESC'] = 322, ['F1'] = 288, ['F2'] = 289, ['F3'] = 170, ['F5'] = 166, ['F6'] = 167, ['F7'] = 168, ['F8'] = 169, ['F9'] = 56, ['F10'] = 57,
     ['~'] = 243, ['1'] = 157, ['2'] = 158, ['3'] = 160, ['4'] = 164, ['5'] = 165, ['6'] = 159, ['7'] = 161, ['8'] = 162, ['9'] = 163, ['-'] = 84, ['='] = 83, ['BACKSPACE'] = 177,
@@ -19,6 +20,7 @@ local function setupESX()
     end
 end
 
+
 RegisterNetEvent("esx:playerLoaded")
 AddEventHandler("esx:playerLoaded", function()
     TriggerEvent("i-perks:perki")
@@ -34,7 +36,13 @@ end)
 -- tylko jesli to konieczne w trakcie gry
 RegisterNetEvent('i-perks:sync')
 AddEventHandler('i-perks:sync', function()
+    print('kx')
+    --AddEventHandler("i-perks:addExp", function(id, skill)
 end)
+
+-- proba dodawania punktow umiejetnosci za jazde w aucie
+local wasincar = false
+
 Citizen.CreateThread(function()
     setupESX()
     ESX.TriggerServerCallback('i-perks:getskills', function (skillx,skillx2)
@@ -48,6 +56,24 @@ Citizen.CreateThread(function()
     exports('GetPerk', function(zmienna)
         return tonumber(perks[zmienna]) -- 1,0
     end)
+    temp_perk_exp = perksexp
+    while true do
+        if GetPedInVehicleSeat(GetVehiclePedIsIn(PlayerPedId(), false), -1) == PlayerPedId() then
+            if (GetEntitySpeed(GetVehiclePedIsIn(PlayerPedId())))*3.6 > 15.0 then
+                print((GetEntitySpeed(GetVehiclePedIsIn(PlayerPedId())))*3.6)
+                --TriggerEvent('FeedM:showNotification','exp driver: '.. temp_perk_exp.driverexp, 5000, 'bottomLeft')
+                temp_perk_exp.driverexp = temp_perk_exp.driverexp + 5
+                wasincar = true
+            end
+            wasincar = true
+        end
+        Citizen.Wait(10000)
+        if wasincar == true and GetPedInVehicleSeat(GetVehiclePedIsIn(PlayerPedId(), false), -1) ~= PlayerPedId() then
+            ESX.TriggerServerCallback('i-perks:addExp', function ()
+            end, GetPlayerServerId(PlayerId()), temp_perk_exp)
+            wasincar = false
+        end
+    end
 end)
 
 

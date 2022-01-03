@@ -10,6 +10,28 @@ AddEventHandler('playerDropped', function (reason)
 	skillexy[name] = nil
 end)
 
+-- komenda dla medyków -- opis w configu co do działania
+RegisterCommand("daj_healera", function(source, args, rawCommand)
+    if (source > 0) then
+		local xTarget = ESX.GetPlayerFromId(args[1])
+		if xTarget ~= nil then
+			local identifier = xTarget.getIdentifier()
+			MySQL.Async.fetchAll('SELECT perks FROM perm_perks WHERE identifier = @identifier', {
+				['@identifier'] = identifier,
+				}, function (result)
+				if result[1] ~= nil then
+					local data = json.decode(result[1].perks)
+					if data['Uhealer'] == 0 then data['Uhealer'] = 1 end
+					MySQL.Sync.execute('UPDATE `perm_perks` SET `perks` = @perks WHERE `identifier` = @identifier', {
+                        ['@identifier'] = xTarget.identifier,
+                        ['@perks'] = json.encode(data),
+                    })
+				end
+			end)
+		end
+	end
+end, false)
+
 local pamiec = false
 
 ESX.RegisterServerCallback('i-perks:getskills', function (source, cb)
@@ -74,10 +96,15 @@ end
 end
 end)
 
+MySQL.ready(function ()
+UpdatePerk = -1
+MySQL.Async.store("UPDATE `perm_perks` SET `perksexp` = @perksexp WHERE `identifier` = @identifier", function(storeIt) UpdatePerk = storeIt end)
+end)
 
-RegisterServerEvent("i-perks:addExp")
-AddEventHandler("i-perks:addExp", function(id, skill)
+ESX.RegisterServerCallback('i-perks:addExp', function (source, cb, id, tablica)
 	local _source = id
+	local l = nil
+	print(id,tablica)
 	local xPlayer = ESX.GetPlayerFromId(_source)
 	local identifier = xPlayer.getIdentifier()
 	MySQL.Async.fetchAll('SELECT perksexp FROM perm_perks WHERE identifier = @identifier', {
@@ -85,14 +112,62 @@ AddEventHandler("i-perks:addExp", function(id, skill)
 	  }, function (result)
 		local data = json.decode(result[1].perksexp)
 		if result[1].perksexp ~= nil then
-			if data[skill] == 0 then
-				data[skill] = data[skill] + 1
+			MySQL.Async.transaction(
+				{UpdatePerk}, 
+				{['@identifier'] = xPlayer.identifier, ['@perksexp'] = json.encode(tablica)},
+				function(success)
+				print(success) 
+				cb(success)
+				
+			end)
+		data = {}
+		else
+		end
+	  end)
+end)
+
+-- ESX.RegisterServerCallback('i-perks:addExp', function (source, cb, id, tablica)
+-- 	local _source = id
+-- 	local l = nil
+-- 	print(id,tablica)
+-- 	local xPlayer = ESX.GetPlayerFromId(_source)
+-- 	local identifier = xPlayer.getIdentifier()
+-- 	MySQL.Async.fetchAll('SELECT perksexp FROM perm_perks WHERE identifier = @identifier', {
+-- 		['@identifier'] = xPlayer.identifier,
+-- 	  }, function (result)
+-- 		local data = json.decode(result[1].perksexp)
+-- 		if result[1].perksexp ~= nil then
+-- 			MySQL.Async.transaction(
+-- 				{'UPDATE `perm_perks` SET `perksexp` = @perksexp WHERE `identifier` = @identifier'}, 
+-- 				{['@identifier'] = xPlayer.identifier, ['@perksexp'] = json.encode(tablica)},
+-- 				function(success)
+-- 				print(success) 
+-- 				l = success
+-- 			end)
+-- 		data = {}
+-- 		else
+-- 		end
+-- 		cb(l)
+-- 	  end)
+-- end)
+
+
+RegisterServerEvent("i-perks:addExp")
+AddEventHandler("i-perks:addExp", function(id, tablica)
+	local _source = id
+	print(id,skill,ile)
+	local xPlayer = ESX.GetPlayerFromId(_source)
+	local identifier = xPlayer.getIdentifier()
+	MySQL.Async.fetchAll('SELECT perksexp FROM perm_perks WHERE identifier = @identifier', {
+		['@identifier'] = xPlayer.identifier,
+	  }, function (result)
+		local data = json.decode(result[1].perksexp)
+		if result[1].perksexp ~= nil then
 				MySQL.Sync.execute('UPDATE `perm_perks` SET `perksexp` = @perksexp WHERE `identifier` = @identifier', {
 					['@identifier'] = xPlayer.identifier,
-					['@perks'] = json.encode(data),
+					['@perksexp'] = json.encode(data),
 				})
-			else
-			end
+
 		else
 		end
 	  end)
